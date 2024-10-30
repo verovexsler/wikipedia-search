@@ -1,0 +1,59 @@
+x-common-variables: &common-variables
+  MYSQL_USER: ${MYSQL_USER}
+  MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+  MYSQL_DATABASE: ${MYSQL_DATABASE}
+  BACKEND_PORT: ${BACKEND_PORT}
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      <<: *common-variables
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - 3306:3306
+    volumes:
+      - ./db/search-history.sql:/docker-entrypoint-initdb.d/search-history.sql
+  phpmyadmin:
+    depends_on:
+      - mysql
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_HOST: ${MYSQL_HOST}
+    links:
+      - mysql:mysql
+    platform: linux/amd64
+    ports:
+      - 8080:80
+    restart: always
+  server:
+    build: ./backend
+    depends_on:
+      - mysql
+    expose:
+      - 3030
+    environment:
+      <<: *common-variables
+      MYSQL_HOST_IP: ${MYSQL_HOST}
+    ports:
+      - 3030:3030
+    volumes:
+      - ./backend:/app
+    links:
+      - mysql
+    command: npm start
+  client:
+    build: ./frontend
+    environment:
+      <<: *common-variables
+      NODE_PATH: src
+    expose:
+      - 3000
+    ports:
+      - 3000:3000
+    volumes:
+      - ./frontend/src:/frontend/src
+    links:
+      - server
+    command: npm start
